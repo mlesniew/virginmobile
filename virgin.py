@@ -58,6 +58,14 @@ class VirginMobile(object):
         return self.iter_history(number, start, end)
 
     def iter_history(self, number, start, end):
+        step = timedelta(days=30)
+        while start <= end:
+            nend = min(end, start + step)
+            for item in self.iter_history_step(number, start, nend):
+                yield item
+            start += step
+
+    def iter_history_step(self, number, start, end):
         FMT = '%Y-%m-%dT%H:%M:%S'
         FMT2 = FMT + '.000+0000'
         page = 0
