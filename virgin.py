@@ -3,7 +3,8 @@
 Download call history from www.virginmobile.pl.
 
 Usage:
-    virgin.py [options] [--table] [--username <username>] [--password <password>] <number> <year> <month>
+    virgin.py [options] <number> year <year>
+    virgin.py [options] <number> month <year> <month>
 
 Options:
     -t, --table                 Print results in a nice table
@@ -23,22 +24,6 @@ import requests
 Entry = namedtuple('Entry', 'date type direction quantity price number')
 
 
-def get_end_of_month(start):
-    dt = timedelta(days=1)
-    ret = start
-    while start.month == ret.month:
-        ret += dt
-    ret = ret.replace(hour=0, minute=0, second=0)
-    ret -= timedelta(seconds=1)
-    return ret
-
-
-def get_month_range(year, month):
-    start = datetime(year, month, 1)
-    end = get_end_of_month(start)
-    return start, end
-
-
 class VirginMobile(object):
 
     def __init__(self):
@@ -54,11 +39,23 @@ class VirginMobile(object):
         resp.raise_for_status()
 
     def iter_history_month(self, number, year, month):
-        start, end = get_month_range(year, month)
+        start = datetime(year, month, 1)
+        if month == 12:
+            end = datetime(year + 1, 1, 1)
+        else:
+            end = datetime(year, month + 1, 1)
+        end -= timedelta(seconds=1)
+        return self.iter_history(number, start, end)
+
+    def iter_history_year(self, number, year):
+        start = datetime(year, 1, 1)
+        end = datetime(year + 1, 1, 1)
+        end -= timedelta(seconds=1)
         return self.iter_history(number, start, end)
 
     def iter_history(self, number, start, end):
         step = timedelta(days=30)
+        end = min(end, datetime.now())
         while start <= end:
             nend = min(end, start + step)
             for item in self.iter_history_step(number, start, nend):
@@ -104,7 +101,7 @@ def main():
 
     number = args['<number>']
     year = int(args['<year>'])
-    month = int(args['<month>'])
+    month = int(args['<month>'] or 0)
 
     username = args['--username']
     if username is None:
@@ -122,7 +119,11 @@ def main():
 
     vm = VirginMobile()
     vm.login(username, password)
-    ret = sorted(vm.iter_history_month(number, year, month))
+
+    if args['year']:
+        ret = sorted(vm.iter_history_year(number, year))
+    else:
+        ret = sorted(vm.iter_history_month(number, year, month))
 
     if args['--table']:
         print tabulate(ret, headers=Entry._fields)
