@@ -54,7 +54,7 @@ class VirginMobile(object):
         return self.iter_history(number, start, end)
 
     def iter_history(self, number, start, end):
-        step = timedelta(days=30)
+        step = timedelta(days=15)
         end = min(end, datetime.now())
         while start <= end:
             nend = min(end, start + step)
@@ -66,17 +66,19 @@ class VirginMobile(object):
         FMT = '%Y-%m-%dT%H:%M:%S'
         FMT2 = FMT + '.000+0000'
         page = 0
+        pageSize = 500
         while True:
+            params = {
+                    'start': start.strftime(FMT),
+                    'end': end.strftime(FMT),
+                    'page': page,
+                    'pageSize': pageSize,
+                    }
             resp = self.session.get('https://virginmobile.pl/spitfire-web-api/api/v1/selfCare/callHistory',
-                                    params={
-                                        'callType': None,
-                                        'start': start.strftime(FMT),
-                                        'end': end.strftime(FMT),
-                                        'page': page,
-                                        'pageSize': 250,
-                                    },
+                                    params=params,
                                     headers={
-                                        'msisdn': number
+                                        'msisdn': number,
+                                        'Accept': 'application/json'
                                     })
 
             resp.raise_for_status()
@@ -89,11 +91,10 @@ class VirginMobile(object):
                             float(element['price']),
                             element['number'])
 
-            if len(result['records']) < 250:
+            if len(result['records']) < pageSize:
                 break
 
             page += 1
-
 
 
 def main():
