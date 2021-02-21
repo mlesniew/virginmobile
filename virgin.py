@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-'''
+"""
 Download call history from www.virginmobile.pl.
 
 Usage:
@@ -11,7 +11,7 @@ Options:
     -u USER, --username USER    Set username
     -p PASS, --password PASS    Set password
     -n, --no-interactive        Don't ask questions
-'''
+"""
 from datetime import datetime, timedelta
 from getpass import getpass
 import dataclasses
@@ -35,17 +35,17 @@ class Entry:
 
 
 class VirginMobile(object):
-
     def __init__(self):
         self.session = requests.session()
 
     def login(self, username, password):
         resp = self.session.post(
-            'https://virginmobile.pl/spitfire-web-api/api/v1/authentication/login',
+            "https://virginmobile.pl/spitfire-web-api/api/v1/authentication/login",
             data={
-                'username': username,
-                'password': password,
-            })
+                "username": username,
+                "password": password,
+            },
+        )
         resp.raise_for_status()
 
     def iter_history_month(self, number, year, month):
@@ -73,35 +73,36 @@ class VirginMobile(object):
             start += step
 
     def iter_history_step(self, number, start, end):
-        FMT = '%Y-%m-%dT%H:%M:%S'
-        FMT2 = FMT + '.000+0000'
+        FMT = "%Y-%m-%dT%H:%M:%S"
+        FMT2 = FMT + ".000+0000"
         page = 0
         pageSize = 500
         while True:
             params = {
-                    'start': start.strftime(FMT),
-                    'end': end.strftime(FMT),
-                    'page': page,
-                    'pageSize': pageSize,
-                    }
-            resp = self.session.get('https://virginmobile.pl/spitfire-web-api/api/v1/selfCare/callHistory',
-                                    params=params,
-                                    headers={
-                                        'msisdn': number,
-                                        'Accept': 'application/json'
-                                    })
+                "start": start.strftime(FMT),
+                "end": end.strftime(FMT),
+                "page": page,
+                "pageSize": pageSize,
+            }
+            resp = self.session.get(
+                "https://virginmobile.pl/spitfire-web-api/api/v1/selfCare/callHistory",
+                params=params,
+                headers={"msisdn": number, "Accept": "application/json"},
+            )
 
             resp.raise_for_status()
             result = resp.json()
-            for element in result['records']:
-                yield Entry(datetime.strptime(element['date'], FMT2),
-                            element['type'],
-                            element['direction'],
-                            int(element['quantity']),
-                            float(element['price']),
-                            element['number'])
+            for element in result["records"]:
+                yield Entry(
+                    datetime.strptime(element["date"], FMT2),
+                    element["type"],
+                    element["direction"],
+                    int(element["quantity"]),
+                    float(element["price"]),
+                    element["number"],
+                )
 
-            if len(result['records']) < pageSize:
+            if len(result["records"]) < pageSize:
                 break
 
             page += 1
@@ -110,42 +111,46 @@ class VirginMobile(object):
 def main():
     args = docopt(__doc__)
 
-    number = args['<number>']
-    year = int(args['<year>'])
-    month = int(args['<month>'] or 0)
+    number = args["<number>"]
+    year = int(args["<year>"])
+    month = int(args["<month>"] or 0)
 
-    username = args['--username']
+    username = args["--username"]
     if username is None:
-        if args['--no-interactive']:
-            raise SystemExit('No username given')
+        if args["--no-interactive"]:
+            raise SystemExit("No username given")
         else:
-            username = input('username:')
+            username = input("username:")
 
-    password = args['--password']
+    password = args["--password"]
     if password is None:
-        if args['--no-interactive']:
-            raise SystemExit('No password given')
+        if args["--no-interactive"]:
+            raise SystemExit("No password given")
         else:
-            password = getpass('password:')
+            password = getpass("password:")
 
     vm = VirginMobile()
     vm.login(username, password)
 
-    if args['year']:
+    if args["year"]:
         entries = sorted(vm.iter_history_year(number, year))
     else:
         entries = sorted(vm.iter_history_month(number, year, month))
 
-    if args['--table']:
-        print(tabulate([dataclasses.astuple(e) for e in entries],
-                       headers=[f.name for f in dataclasses.fields(Entry)]))
+    if args["--table"]:
+        print(
+            tabulate(
+                [dataclasses.astuple(e) for e in entries],
+                headers=[f.name for f in dataclasses.fields(Entry)],
+            )
+        )
     else:
         for element in entries:
-            print('\t'.join(str(e) for e in dataclasses.astuple(element)))
+            print("\t".join(str(e) for e in dataclasses.astuple(element)))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        raise SystemExit('Aborted.')
+        raise SystemExit("Aborted.")
