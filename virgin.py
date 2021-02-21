@@ -14,7 +14,9 @@ Options:
 """
 from datetime import datetime, timedelta
 from getpass import getpass
+import csv
 import dataclasses
+import sys
 
 from docopt import docopt
 from tabulate import tabulate
@@ -137,16 +139,19 @@ def main():
     else:
         entries = sorted(vm.iter_history_month(number, year, month))
 
+    FIELDS = [f.name for f in dataclasses.fields(Entry)]
     if args["--table"]:
         print(
             tabulate(
                 [dataclasses.astuple(e) for e in entries],
-                headers=[f.name for f in dataclasses.fields(Entry)],
+                headers=FIELDS,
             )
         )
     else:
-        for element in entries:
-            print("\t".join(str(e) for e in dataclasses.astuple(element)))
+        writer = csv.DictWriter(sys.stdout, FIELDS)
+        writer.writeheader()
+        for entry in entries:
+            writer.writerow(dataclasses.asdict(entry))
 
 
 if __name__ == "__main__":
