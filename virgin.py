@@ -12,16 +12,26 @@ Options:
     -p PASS, --password PASS    Set password
     -n, --no-interactive        Don't ask questions
 '''
-from collections import namedtuple
 from datetime import datetime, timedelta
 from getpass import getpass
+import dataclasses
 
 from docopt import docopt
 from tabulate import tabulate
 import requests
 
 
-Entry = namedtuple('Entry', 'date type direction quantity price number')
+@dataclasses.dataclass
+class Entry:
+    date: datetime
+    type: str
+    direction: str
+    quantity: int
+    cost: float
+    number: str
+
+    def __lt__(self, other):
+        return self.date < other.date
 
 
 class VirginMobile(object):
@@ -122,15 +132,16 @@ def main():
     vm.login(username, password)
 
     if args['year']:
-        ret = sorted(vm.iter_history_year(number, year))
+        entries = sorted(vm.iter_history_year(number, year))
     else:
-        ret = sorted(vm.iter_history_month(number, year, month))
+        entries = sorted(vm.iter_history_month(number, year, month))
 
     if args['--table']:
-        print(tabulate(ret, headers=Entry._fields))
+        print(tabulate([dataclasses.astuple(e) for e in entries],
+                       headers=[f.name for f in dataclasses.fields(Entry)]))
     else:
-        for element in ret:
-            print('\t'.join(str(e) for e in element))
+        for element in entries:
+            print('\t'.join(str(e) for e in dataclasses.astuple(element)))
 
 
 if __name__ == '__main__':
