@@ -7,7 +7,7 @@ Usage:
     virgin.py [options] <number> month <year> <month>
 
 Options:
-    -t, --table                 Print results in a nice table
+    -c, --csv                   Produce CSV output instead of a table
     -u USER, --username USER    Set username
     -p PASS, --password PASS    Set password
     -n, --no-interactive        Don't ask questions
@@ -140,7 +140,7 @@ def main():
         entries = sorted(vm.iter_history_month(number, year, month))
 
     FIELDS = [f.name for f in dataclasses.fields(Entry)]
-    if args["--table"]:
+    if not args["--csv"]:
         print(
             tabulate(
                 [dataclasses.astuple(e) for e in entries],
