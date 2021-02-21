@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 '''
 Download call history from www.virginmobile.pl.
 
@@ -109,7 +109,7 @@ def main():
         if args['--no-interactive']:
             raise SystemExit('No username given')
         else:
-            username = raw_input('username:')
+            username = input('username:')
 
     password = args['--password']
     if password is None:
@@ -127,10 +127,10 @@ def main():
         ret = sorted(vm.iter_history_month(number, year, month))
 
     if args['--table']:
-        print tabulate(ret, headers=Entry._fields)
+        print(tabulate(ret, headers=Entry._fields))
     else:
         for element in ret:
-            print '\t'.join(str(e) for e in element)
+            print('\t'.join(str(e) for e in element))
 
 
 if __name__ == '__main__':
