@@ -3,6 +3,7 @@
 Download call history from www.virginmobile.pl.
 
 Usage:
+    virgin.py [options] <number> last (month|year)
     virgin.py [options] <number> year <year>
     virgin.py [options] <number> month <year> <month>
 
@@ -65,6 +66,16 @@ class VirginMobile(object):
         end -= timedelta(seconds=1)
         return self.iter_history(number, start, end)
 
+    def iter_history_last_year(self, number):
+        end = datetime.utcnow()
+        start = end - timedelta(days=366)
+        return self.iter_history(number, start, end)
+
+    def iter_history_last_month(self, number):
+        end = datetime.utcnow()
+        start = end - timedelta(days=31)
+        return self.iter_history(number, start, end)
+
     def iter_history(self, number, start, end):
         step = timedelta(days=15)
         end = min(end, datetime.now())
@@ -114,8 +125,6 @@ def main():
     args = docopt(__doc__)
 
     number = args["<number>"]
-    year = int(args["<year>"])
-    month = int(args["<month>"] or 0)
 
     username = args["--username"]
     if username is None:
@@ -134,11 +143,21 @@ def main():
     vm = VirginMobile()
     vm.login(username, password)
 
-    if args["year"]:
-        entries = sorted(vm.iter_history_year(number, year))
+    if not args["last"]:
+        if args["year"]:
+            year = int(args["<year>"])
+            entries = vm.iter_history_year(number, year)
+        elif args["month"]:
+            year = int(args["<year>"])
+            month = int(args["<month>"])
+            entries = vm.iter_history_month(number, year, month)
     else:
-        entries = sorted(vm.iter_history_month(number, year, month))
+        if args["year"]:
+            entries = vm.iter_history_last_year(number)
+        elif args["month"]:
+            entries = vm.iter_history_last_month(number)
 
+    entries = sorted(entries)
     FIELDS = [f.name for f in dataclasses.fields(Entry)]
     if not args["--csv"]:
         print(
