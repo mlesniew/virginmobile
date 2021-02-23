@@ -6,6 +6,7 @@ Usage:
     virgin.py [options] <number> last <count> days
     virgin.py [options] <number> year <year>
     virgin.py [options] <number> month <year> <month>
+    virgin.py [options] cat <file>...
 
 Options:
     -c, --csv                   Produce CSV output instead of a table
@@ -15,6 +16,7 @@ Options:
 """
 from datetime import datetime, timedelta
 from getpass import getpass
+from collections import defaultdict
 import csv
 import dataclasses
 import sys
@@ -24,7 +26,7 @@ from tabulate import tabulate
 import requests
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True, order=True)
 class Entry:
     date: datetime
     type: str
@@ -32,9 +34,6 @@ class Entry:
     quantity: int
     cost: float
     number: str
-
-    def __lt__(self, other):
-        return self.date < other.date
 
 
 class VirginMobile(object):
@@ -116,41 +115,71 @@ class VirginMobile(object):
             page += 1
 
 
+def cat(a, b):
+    c = defaultdict(list)
+    for elements in [a, b]:
+        for e in elements:
+            key = (e.date, e.type)
+            c[key].append(e)
+    for key in sorted(c):
+        elements = c[key]
+        quantities = set(e.quantity for e in elements)
+        assert key[1] == "DATA" or len(quantities) == 1
+        yield max(elements, key=lambda e: e.quantity)
+
+
 def main():
     args = docopt(__doc__)
 
-    number = args["<number>"]
-
-    username = args["--username"]
-    if username is None:
-        if args["--no-interactive"]:
-            raise SystemExit("No username given")
-        else:
-            username = input("username:")
-
-    password = args["--password"]
-    if password is None:
-        if args["--no-interactive"]:
-            raise SystemExit("No password given")
-        else:
-            password = getpass("password:")
-
-    vm = VirginMobile()
-    vm.login(username, password)
-
-    if args["last"]:
-        count = int(args["<count>"])
-        entries = vm.iter_history_days(number, count)
+    if args["cat"]:
+        entries = []
+        for filename in args["<file>"]:
+            with open(filename, "r", encoding="utf-8") as f:
+                csv_entries = (
+                    Entry(
+                        datetime.fromisoformat(element["date"]),
+                        element["type"],
+                        element["direction"],
+                        int(element["quantity"]),
+                        float(element["cost"]),
+                        element["number"],
+                    )
+                    for element in csv.DictReader(f)
+                )
+                entries = list(cat(entries, csv_entries))
     else:
-        if args["year"]:
-            year = int(args["<year>"])
-            entries = vm.iter_history_year(number, year)
-        elif args["month"]:
-            year = int(args["<year>"])
-            month = int(args["<month>"])
-            entries = vm.iter_history_month(number, year, month)
+        number = args["<number>"]
 
-    entries = sorted(entries)
+        username = args["--username"]
+        if username is None:
+            if args["--no-interactive"]:
+                raise SystemExit("No username given")
+            else:
+                username = input("username:")
+
+        password = args["--password"]
+        if password is None:
+            if args["--no-interactive"]:
+                raise SystemExit("No password given")
+            else:
+                password = getpass("password:")
+
+        vm = VirginMobile()
+        vm.login(username, password)
+
+        if args["last"]:
+            count = int(args["<count>"])
+            entries = vm.iter_history_days(number, count)
+        else:
+            if args["year"]:
+                year = int(args["<year>"])
+                entries = vm.iter_history_year(number, year)
+            elif args["month"]:
+                year = int(args["<year>"])
+                month = int(args["<month>"])
+                entries = vm.iter_history_month(number, year, month)
+
+    entries = sorted(set(entries))
     FIELDS = [f.name for f in dataclasses.fields(Entry)]
     if not args["--csv"]:
         print(
