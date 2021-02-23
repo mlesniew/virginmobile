@@ -1,9 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Download call history from www.virginmobile.pl.
 
 Usage:
-    virgin.py [options] <number> last (month|year)
+    virgin.py [options] <number> last <count> days
     virgin.py [options] <number> year <year>
     virgin.py [options] <number> month <year> <month>
 
@@ -66,19 +66,14 @@ class VirginMobile(object):
         end -= timedelta(seconds=1)
         return self.iter_history(number, start, end)
 
-    def iter_history_last_year(self, number):
+    def iter_history_days(self, number, count):
         end = datetime.utcnow()
-        start = end - timedelta(days=366)
-        return self.iter_history(number, start, end)
-
-    def iter_history_last_month(self, number):
-        end = datetime.utcnow()
-        start = end - timedelta(days=31)
+        start = end - timedelta(days=count)
         return self.iter_history(number, start, end)
 
     def iter_history(self, number, start, end):
         step = timedelta(days=15)
-        end = min(end, datetime.now())
+        end = min(end, datetime.utcnow())
         while start <= end:
             nend = min(end, start + step)
             for item in self.iter_history_step(number, start, nend):
@@ -143,7 +138,10 @@ def main():
     vm = VirginMobile()
     vm.login(username, password)
 
-    if not args["last"]:
+    if args["last"]:
+        count = int(args["<count>"])
+        entries = vm.iter_history_days(number, count)
+    else:
         if args["year"]:
             year = int(args["<year>"])
             entries = vm.iter_history_year(number, year)
@@ -151,11 +149,6 @@ def main():
             year = int(args["<year>"])
             month = int(args["<month>"])
             entries = vm.iter_history_month(number, year, month)
-    else:
-        if args["year"]:
-            entries = vm.iter_history_last_year(number)
-        elif args["month"]:
-            entries = vm.iter_history_last_month(number)
 
     entries = sorted(entries)
     FIELDS = [f.name for f in dataclasses.fields(Entry)]
